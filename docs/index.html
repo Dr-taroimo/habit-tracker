@@ -45,6 +45,16 @@
             maxlength="40"
             placeholder="例: 朝に水を飲む"
           />
+          <div class="time-row time-row--compact">
+            <label>
+              <span>通知する時</span>
+              <input id="new-habit-hour" inputmode="numeric" maxlength="2" aria-label="追加する習慣の通知時" />
+            </label>
+            <label>
+              <span>通知する分</span>
+              <input id="new-habit-minute" inputmode="numeric" maxlength="2" aria-label="追加する習慣の通知分" />
+            </label>
+          </div>
           <button class="button button--mint" type="submit">習慣を追加</button>
         </form>
       </section>
@@ -52,21 +62,12 @@
       <section class="panel" aria-labelledby="notify-heading">
         <div class="panel__heading">
           <div>
-            <p class="section-kicker">開いている間にお知らせ</p>
-            <h2 id="notify-heading">毎日の通知</h2>
+            <p class="section-kicker">習慣ごとにお知らせ</p>
+            <h2 id="notify-heading">通知と効果音</h2>
           </div>
           <span class="mini-icon mini-icon--bell" aria-hidden="true"></span>
         </div>
-        <div class="time-row">
-          <label>
-            <span>時</span>
-            <input id="notify-hour" inputmode="numeric" maxlength="2" aria-label="通知する時" />
-          </label>
-          <label>
-            <span>分</span>
-            <input id="notify-minute" inputmode="numeric" maxlength="2" aria-label="通知する分" />
-          </label>
-        </div>
+        <p class="panel-copy">通知時刻は、それぞれの習慣カードから変更できます。</p>
         <div class="setting-row">
           <label class="switch">
             <input id="sound-toggle" type="checkbox" />
@@ -74,7 +75,6 @@
             効果音
           </label>
           <button class="button button--sky" id="permission-button" type="button">通知を許可</button>
-          <button class="button button--lemon" id="save-time-button" type="button">時刻を保存</button>
         </div>
         <p class="notice" id="notice" role="status" aria-live="polite"></p>
       </section>
@@ -100,9 +100,20 @@
         <div class="stats">
           <span class="pill pill--mint"></span>
           <span class="pill pill--lemon"></span>
+          <span class="pill pill--sky"></span>
         </div>
         <p class="week-label">直近7日間</p>
         <div class="week-dots"></div>
+        <div class="habit-time">
+          <p>通知する時刻</p>
+          <div class="habit-time__controls">
+            <input class="habit-hour" inputmode="numeric" maxlength="2" aria-label="通知する時" />
+            <span>時</span>
+            <input class="habit-minute" inputmode="numeric" maxlength="2" aria-label="通知する分" />
+            <span>分</span>
+            <button class="button button--lemon habit-time__save" type="button">保存</button>
+          </div>
+        </div>
         <button class="button button--coral habit-card__button" type="button"></button>
       </article>
     </template>

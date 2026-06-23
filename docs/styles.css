@@ -245,7 +245,8 @@ h3 {
 }
 
 input[type="text"],
-.time-row input {
+.time-row input,
+.habit-time input {
   width: 100%;
   height: 54px;
   border: 1px solid var(--line);
@@ -310,6 +311,10 @@ input:focus {
   margin-top: 14px;
 }
 
+.time-row--compact {
+  margin-top: 0;
+}
+
 .time-row label {
   display: grid;
   gap: 6px;
@@ -321,6 +326,12 @@ input:focus {
 .time-row input {
   text-align: center;
   font-size: 18px;
+}
+
+.panel-copy {
+  margin: 12px 0 0;
+  color: var(--subtle);
+  line-height: 1.7;
 }
 
 .setting-row {
@@ -500,6 +511,10 @@ input:focus {
   background: var(--lemon);
 }
 
+.pill--sky {
+  background: var(--sky);
+}
+
 .week-dots {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -546,6 +561,44 @@ input:focus {
   margin-top: 16px;
 }
 
+.habit-time {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: rgba(174, 219, 255, 0.22);
+}
+
+.habit-time p {
+  margin: 0 0 10px;
+  color: var(--subtle);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.habit-time__controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(92px, 0.9fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.habit-time__controls input {
+  height: 46px;
+  padding: 0 10px;
+  text-align: center;
+  font-size: 16px;
+}
+
+.habit-time__controls span {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.habit-time__save {
+  min-height: 46px;
+  padding: 0 12px;
+}
+
 .empty-state {
   margin-top: 0;
 }
@@ -587,5 +640,13 @@ input:focus {
 
   .setting-row .button {
     flex-basis: 100%;
+  }
+
+  .habit-time__controls {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  }
+
+  .habit-time__save {
+    grid-column: 1 / -1;
   }
 }

@@ -4,28 +4,27 @@ const NOTICE_TIMEOUT_MS = 3200;
 const elements = {
   form: document.querySelector("#habit-form"),
   input: document.querySelector("#habit-input"),
+  newHabitHour: document.querySelector("#new-habit-hour"),
+  newHabitMinute: document.querySelector("#new-habit-minute"),
   habits: document.querySelector("#habits"),
   template: document.querySelector("#habit-template"),
   clearButton: document.querySelector("#clear-button"),
   soundToggle: document.querySelector("#sound-toggle"),
-  hour: document.querySelector("#notify-hour"),
-  minute: document.querySelector("#notify-minute"),
   permissionButton: document.querySelector("#permission-button"),
-  saveTimeButton: document.querySelector("#save-time-button"),
   notice: document.querySelector("#notice"),
 };
 
 const state = loadState();
 let audioContext = null;
 let noticeTimer = null;
-let lastNotificationDate = "";
+const notifiedKeys = new Set();
 
 initialize();
 
 function initialize() {
   elements.soundToggle.checked = state.soundEnabled;
-  elements.hour.value = String(state.notification.hour).padStart(2, "0");
-  elements.minute.value = String(state.notification.minute).padStart(2, "0");
+  elements.newHabitHour.value = "08";
+  elements.newHabitMinute.value = "00";
 
   elements.form.addEventListener("submit", handleAddHabit);
   elements.clearButton.addEventListener("click", clearHabits);
@@ -34,11 +33,10 @@ function initialize() {
     saveState();
   });
   elements.permissionButton.addEventListener("click", requestNotificationPermission);
-  elements.saveTimeButton.addEventListener("click", saveNotificationTime);
-  window.setInterval(checkScheduledNotification, 30 * 1000);
+  window.setInterval(checkScheduledNotifications, 30 * 1000);
 
   renderHabits();
-  checkScheduledNotification();
+  checkScheduledNotifications();
 }
 
 function handleAddHabit(event) {
@@ -49,9 +47,17 @@ function handleAddHabit(event) {
     return;
   }
 
+  const notification = readTimeInputs(
+    elements.newHabitHour,
+    elements.newHabitMinute,
+    "通知時刻を正しく入力してください"
+  );
+  if (!notification) return;
+
   state.habits.unshift({
     id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
     name,
+    notification,
     completedDates: [],
   });
   elements.input.value = "";
@@ -115,13 +121,21 @@ function renderHabits() {
     const status = fragment.querySelector(".habit-card__state");
     const pills = fragment.querySelectorAll(".pill");
     const weekDots = fragment.querySelector(".week-dots");
+    const hourInput = fragment.querySelector(".habit-hour");
+    const minuteInput = fragment.querySelector(".habit-minute");
+    const saveTimeButton = fragment.querySelector(".habit-time__save");
     const button = fragment.querySelector(".habit-card__button");
+    const notification = normalizedNotification(habit.notification);
 
     card.classList.toggle("is-complete", completeToday);
     title.textContent = habit.name;
     status.textContent = completeToday ? "今日もできました" : "今日はまだです";
     pills[0].textContent = `連続${streakDays(habit)}日`;
     pills[1].textContent = `今週${weekCompletedCount(habit)}/7`;
+    pills[2].textContent = `${formatTime(notification)}に通知`;
+    hourInput.value = String(notification.hour).padStart(2, "0");
+    minuteInput.value = String(notification.minute).padStart(2, "0");
+    saveTimeButton.addEventListener("click", () => saveHabitNotificationTime(habit.id, hourInput, minuteInput));
     button.textContent = completeToday ? "取り消す" : "今日できた";
     button.classList.toggle("button--soft", completeToday);
     button.classList.toggle("button--coral", !completeToday);
@@ -139,6 +153,22 @@ function renderHabits() {
   });
 }
 
+function saveHabitNotificationTime(habitId, hourInput, minuteInput) {
+  const notification = readTimeInputs(hourInput, minuteInput, "通知時刻を正しく入力してください");
+  if (!notification) return;
+
+  const habit = state.habits.find((item) => item.id === habitId);
+  if (!habit) return;
+
+  habit.notification = notification;
+  hourInput.value = String(notification.hour).padStart(2, "0");
+  minuteInput.value = String(notification.minute).padStart(2, "0");
+  saveState();
+  renderHabits();
+  showNotice(`「${habit.name}」は${formatTime(notification)}に通知します`);
+  sendNotification("通知時刻を保存しました", `「${habit.name}」を${formatTime(notification)}にお知らせします。`);
+}
+
 async function requestNotificationPermission() {
   if (!("Notification" in window)) {
     showNotice("このブラウザでは通知を利用できません");
@@ -153,32 +183,20 @@ async function requestNotificationPermission() {
   }
 }
 
-function saveNotificationTime() {
-  const hour = Number.parseInt(elements.hour.value.trim(), 10);
-  const minute = Number.parseInt(elements.minute.value.trim(), 10);
-
-  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-    showNotice("通知時刻を正しく入力してください");
-    return;
-  }
-
-  state.notification = { hour, minute };
-  elements.hour.value = String(hour).padStart(2, "0");
-  elements.minute.value = String(minute).padStart(2, "0");
-  saveState();
-  showNotice("毎日の通知を設定しました");
-  sendNotification("毎日の通知を設定しました", "ページを開いている間、設定時刻にお知らせします。");
-}
-
-function checkScheduledNotification() {
+function checkScheduledNotifications() {
   const now = new Date();
   const today = dateKey(now);
-  if (lastNotificationDate === today) return;
-  if (now.getHours() !== state.notification.hour || now.getMinutes() !== state.notification.minute) return;
+  state.habits.forEach((habit) => {
+    const notification = normalizedNotification(habit.notification);
+    if (now.getHours() !== notification.hour || now.getMinutes() !== notification.minute) return;
 
-  lastNotificationDate = today;
-  showNotice("今日の習慣をチェックしましょう");
-  sendNotification("習慣トラッカー", "今日の習慣をチェックしましょう");
+    const key = `${habit.id}:${today}:${notification.hour}:${notification.minute}`;
+    if (notifiedKeys.has(key)) return;
+
+    notifiedKeys.add(key);
+    showNotice(`「${habit.name}」の時間です`);
+    sendNotification("習慣トラッカー", `「${habit.name}」の時間です。`);
+  });
 }
 
 function sendNotification(title, body) {
@@ -232,6 +250,31 @@ function showNotice(message) {
   }, NOTICE_TIMEOUT_MS);
 }
 
+function readTimeInputs(hourInput, minuteInput, errorMessage) {
+  const hour = Number.parseInt(hourInput.value.trim(), 10);
+  const minute = Number.parseInt(minuteInput.value.trim(), 10);
+
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    showNotice(errorMessage);
+    return null;
+  }
+
+  return { hour, minute };
+}
+
+function normalizedNotification(notification) {
+  const hour = Number.isInteger(notification?.hour) ? notification.hour : 8;
+  const minute = Number.isInteger(notification?.minute) ? notification.minute : 0;
+  return {
+    hour: Math.min(23, Math.max(0, hour)),
+    minute: Math.min(59, Math.max(0, minute)),
+  };
+}
+
+function formatTime(notification) {
+  return `${String(notification.hour).padStart(2, "0")}:${String(notification.minute).padStart(2, "0")}`;
+}
+
 function playSound(type) {
   if (!state.soundEnabled) return;
   audioContext = audioContext || new AudioContext();
@@ -265,19 +308,22 @@ function loadState() {
   const defaults = {
     habits: [],
     soundEnabled: true,
-    notification: { hour: 20, minute: 0 },
   };
 
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    const habits = Array.isArray(parsed?.habits)
+      ? parsed.habits.map((habit) => ({
+          ...habit,
+          notification: normalizedNotification(habit.notification || parsed?.notification),
+          completedDates: Array.isArray(habit.completedDates) ? habit.completedDates : [],
+        }))
+      : [];
+
     return {
       ...defaults,
       ...parsed,
-      habits: Array.isArray(parsed?.habits) ? parsed.habits : [],
-      notification: {
-        ...defaults.notification,
-        ...(parsed?.notification || {}),
-      },
+      habits,
     };
   } catch {
     return defaults;
